@@ -1,6 +1,11 @@
 import requests
 
 def save_response_content(target_url, destination):
+    """
+    for example,
+    url is "https://raw.githubusercontent.com/lkYu92393/python-snippet/refs/heads/main/file/download_example.py"
+    destination will be file path, like "./download_example.py"
+    """
     session = requests.Session()
     response = session.get(target_url, stream=True)
 

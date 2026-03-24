@@ -11,7 +11,7 @@ MARKET_DICT = {
     "hk": Market.HONGKONG,
 }
 
-def get_default_stock_screener():
+def get_default_stock_screener(region, names = []):
     ss = StockScreener()
     ss.select(*STOCKFIELD_BASIC, *STOCKFIELD_MA, *STOCKFIELD_BB)
     ss.where(StockField.CURRENCY != 'CNY', StockField.EXCHANGE != 'OTC')

@@ -14,6 +14,4 @@ def save_response_content(target_url, destination):
         for chunk in response.iter_content(CHUNK_SIZE):
             if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
-                
-    save_response_content(response, destination)
 

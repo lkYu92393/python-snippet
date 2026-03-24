@@ -1,8 +1,4 @@
-try:
-    import telegram
-except:
-    !pip install python-telegram-bot
-    import telegram
+import telegram
 
 class TelegramHelper():
     def __init__(self, bot_profile):

@@ -18,7 +18,7 @@ def get_default_stock_screener(region, names = []):
     if region in list(MARKET_DICT.keys()):
         ss.set_markets(MARKET_DICT[region])
     if type(names) == list and len(names) > 0:
-        ss.where(StockField.NAME.isin(name))
+        ss.where(StockField.NAME.isin(names))
     ss.set_range(0, 10000)
     return ss
 

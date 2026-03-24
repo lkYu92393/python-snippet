@@ -1,3 +1,4 @@
+# pip install python-telegram-bot
 import telegram
 
 class TelegramHelper():

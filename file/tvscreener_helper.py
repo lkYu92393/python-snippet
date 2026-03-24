@@ -17,7 +17,7 @@ def get_default_stock_screener():
     ss.where(StockField.CURRENCY != 'CNY', StockField.EXCHANGE != 'OTC')
     if region in list(MARKET_DICT.keys()):
         ss.set_markets(MARKET_DICT[region])
-    if type(names) == list && len(names) > 0:
+    if type(names) == list and len(names) > 0:
         ss.where(StockField.NAME.isin(name))
     ss.set_range(0, 10000)
     return ss

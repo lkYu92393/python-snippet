@@ -19,15 +19,16 @@ def get_default_stock_screener():
         ss.set_markets(MARKET_DICT[region])
     if type(names) == list && len(names) > 0:
         ss.where(StockField.NAME.isin(name))
+    ss.set_range(0, 10000)
     return ss
 
-def get_tv_data(region, names: list):
+def get_tv_data(region, names: list, range: int):
     ss = get_default_stock_screener(region, names)
     ss.sort_by(StockField.MARKET_CAPITALIZATION, ascending=False)
     df = ss.get()
     return df
 
-def get_tv_etf_data(region, names: list):
+def get_tv_etf_data(region, names: list, , range: int):
     ss = get_default_stock_screener(region, names)
     ss.sort_by(StockField.VOLUMEXPRICE, ascending=False)
     df = ss.get()

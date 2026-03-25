@@ -4,6 +4,10 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 
+def cross_func(this_row, last_row, param_that_cross, param_being_crossed):
+    return (last_row[param_that_cross] < last_row[param_being_crossed]
+            and this_row[param_that_cross] >= this_row[param_being_crossed])
+
 def ta_bbm(df, window=20, window_dev=2):
     # Initialize Bollinger Bands Indicator
     indicator_bb = ta.volatility.BollingerBands(close=df["Close"], window=window, window_dev=window_dev)
@@ -159,4 +163,120 @@ def mcd(df):
     # hot is yellow, mm is red
 
     return hot_rsi, mm_rsi
+
+
+def add_additional_column_and_remove_dividend(df, additional_function = None):
+    new_df = df.copy()
+    if "Dividend" in new_df.columns:
+        new_df.drop(columns=["Dividend"])
+
+    # new_df["next_open"] = new_df.loc[:, "Open"].shift(-1)
+    # new_df["next_close"] = new_df.loc[:, "Close"].shift(-1)
+    new_df["last_close"] = new_df.loc[:, "Close"].shift(1)
+
+    def get_n_day_change(days, in_percentage = False):
+        numerator = (new_df.loc[:, "Close"] - new_df.loc[:, "Close"].shift(days))
+        if in_percentage:
+            numerator /= new_df.loc[:, "Close"].shift(days)
+        return numerator
+    # new_df["1d_Change"] = get_n_day_change(1)
+    # new_df["1d_Change_percentage"] = get_n_day_change(1, True)
+    new_df["5d_Change"] = get_n_day_change(5)
+    new_df["5d_Change_percentage"] = get_n_day_change(5, True)
+    # new_df["1dR"] = new_df.loc[:, "Close"] - new_df.loc[:, "Close"].shift(-1)
+    # new_df["5dR"] = new_df.loc[:, "Close"] - new_df.loc[:, "Close"].shift(-5)
+    # new_df["20dR"] = new_df.loc[:, "Close"] - new_df.loc[:, "Close"].shift(-20)
+    # new_df["5dmR"] = new_df.loc[:, "Close"].rolling(
+    #     5).apply(lambda x: x.max() - x[0]).shift(-4)
+    # new_df["20dmR"] = new_df.loc[:, "Close"].rolling(
+    #     20).apply(lambda x: x.max() - x[0]).shift(-19)
+    # new_df["30dmR"] = new_df.loc[:, "Close"].rolling(
+    #     30).apply(lambda x: x.max() - x[0]).shift(-29)
+
+    new_df["ma60"] = new_df["Close"].rolling(60).mean()
+
+    # [6,9,11,13,25,48,200]
+    for i in [9,11,25,48,200]:
+        new_df[f"ema{i}"] = new_df.loc[:, "Close"].ewm(span=i, min_periods=0, adjust=False).mean()
+
+    ema_mask = new_df["ema11"] >= new_df["ema25"]
+
+    new_df['ema_bullish'] = 0
+    count_true = 0
+    count_false = 0
+
+    # Iterate over the DataFrame
+    for i in range(len(new_df)):
+        if ema_mask.iloc[i]:  # If True
+            count_true += 1
+            count_false = 0
+            new_df.loc[new_df.index[i], 'ema_bullish'] = count_true
+        else:  # If False
+            count_false += 1
+            count_true = 0
+            new_df.loc[new_df.index[i], 'ema_bullish'] = -count_false
+
+    new_df["rsi6"] = ta.momentum.RSIIndicator(close=new_df["Close"], window=6).rsi()
+    new_df["rsi14"] = ta.momentum.RSIIndicator(close=new_df["Close"], window=14).rsi()
+    new_df["rsi14_ma14"] = new_df["rsi14"].rolling(14).mean()
+
+    new_df["bb_bbm"], new_df["bb_bbh"], new_df["bb_bbl"], new_df["bb_bbhi"], new_df["bb_bbli"] = ta_bbm(new_df)
+    new_df["super_bbm"], new_df["super_bbh"], new_df["super_bbl"], _, _ = ta_bbm(new_df, 330, 2.5)
+
+    new_df["tsi"] = ta.momentum.TSIIndicator(close=new_df["Close"], window_slow=13, window_fast=5).tsi()
+    new_df["tsi_smooth"] = new_df.loc[:, "tsi"].ewm(span=10, min_periods=0, adjust=False).mean()
+
+    new_df["bb_bbm_d"] = new_df.loc[:, "Close"].ewm(span=48, min_periods=0, adjust=False).mean().rolling(2).apply(lambda x: 1 if ((x.iloc[1]-x.iloc[0]) > 0) else 0)
+
+    def bb_pos(row):
+        return 2 * (row["Close"] - row["bb_bbm"]) / (row["bb_bbh"] - row["bb_bbl"])
+    new_df["bb_pos"] = new_df.apply(bb_pos, axis=1)
+
+    def bb_hpos(row):
+        return 2 * (row["High"] - row["bb_bbm"]) / (row["bb_bbh"] - row["bb_bbl"])
+    new_df["bb_hpos"] = new_df.apply(bb_hpos, axis=1)
+
+    def bb_lpos(row):
+        return 2 * (row["Low"] - row["bb_bbm"]) / (row["bb_bbh"] - row["bb_bbl"])
+    new_df["bb_lpos"] = new_df.apply(bb_lpos, axis=1)
+
+    try:
+        new_df["zz"], new_df["zz_signal"] = get_zigzag(df.loc[:, "Close"], change=10)
+    except:
+        print("Fail to get zz.")
+
+    try:
+        new_df["de"] = get_de(df.loc[:, "Close"])
+        new_df["de_norm"] = 2 * new_df["de"] / \
+            (new_df["Close"] + new_df["Open"])
+        new_df["de_change"] = new_df["de"].rolling(
+            2).apply(lambda x: x.iloc[1] / x.iloc[0] - 1)
+
+        def de_cross(col):
+            value = 0
+            if col.iloc[1] > 0 and col.iloc[0] < 0:
+                value = 1
+            elif col.iloc[1] < 0 and col.iloc[0] > 0:
+                value = -1
+            return value
+        new_df["de_cross"] = new_df.loc[:, "de"].rolling(2).apply(de_cross)
+    except:
+        print("Fail to get DE.")
+        sys.exit(1)
+
+    new_df["Volume_ma5"] = new_df.loc[:, "Volume"].rolling(5).mean()
+    new_df["Volume_ma5_ratio"] = (new_df.loc[:, "Volume"] / new_df.loc[:, "Volume_ma5"]).apply(lambda x: round(x, 2))
+    new_df["Volume_ma20"] = new_df.loc[:, "Volume"].rolling(20).mean()
+    new_df["Volume_ma20_ratio"] = (new_df.loc[:, "Volume"] / new_df.loc[:, "Volume_ma20"]).apply(lambda x: round(x, 2))
+
+    # new_df["buyer"], new_df["pre_buyer"], new_df["retail"], new_df["market_maker"] = firehill(df)
+
+    # new_df["deepsea"] = deepsea(df)
+
+    new_df["hot_rsi"], new_df["mm_rsi"] = mcd(new_df)
+
+    if additional_function != None:
+        additional_function(new_df)
+
+    return new_df
 

@@ -3,6 +3,7 @@ import telegram
 
 class TelegramHelper():
     def __init__(self, bot_profile):
+        self.is_debug = False
         self.bot_profile = TelegramBotProfile(bot_profile)
         if self.bot_profile.is_valid:
             self.bot = telegram.Bot(token = self.bot_profile.bot_token)
@@ -17,7 +18,9 @@ class TelegramHelper():
             result = await self.bot.send_message(target_id, message,
                 parse_mode=telegram.constants.ParseMode.HTML, disable_web_page_preview=True, message_thread_id=message_thread_id)
             return result
-        except:
+        except Exception as e:
+            if is_debug:
+                print(e)
             return None
 
     async def send_file(self, target_id = None, file = None, message_thread_id=None):
@@ -28,20 +31,22 @@ class TelegramHelper():
         try:
             result = await self.bot.send_document(target_id, file, message_thread_id=message_thread_id, write_timeout=60)
             return result
-        except:
+        except Exception as e:
+            if is_debug:
+                print(e)
             return None
 
 class TelegramBotProfile():
     TG_BOT_UPDATE_URL = "https://api.telegram.org/bot{}/getUpdates"
     TG_BOT_PROFILE_EXAMPLE = {
         "bot_token": "PLACE_YOUR_TOKEN_HERE",
-        "chat_id": "SOME_NUMBER",
-        "healthcheck_thread_id": "SOME_NUMBER",
-        "alert_thread_id": "SOME_NUMBER",
-        "daily_report_id": "SOME_NUMBER",
-        "daily_screener_id": "SOME_NUMBER",
-        "hk_daily_id": "SOME_NUMBER",
-        "us_daily_id": "SOME_NUMBER",
+        "chat_id": 1,
+        "healthcheck_thread_id": 2,
+        "alert_thread_id": 3,
+        "daily_report_id": 4,
+        "daily_screener_id": 5,
+        "hk_daily_id": 6,
+        "us_daily_id": 7,
     }
 
     def __init__(self, bot_profile):
@@ -55,6 +60,6 @@ class TelegramBotProfile():
             self.daily_screener_id = bot_profile["daily_screener_id"]
             self.hk_daily_id = bot_profile["hk_daily_id"]
             self.us_daily_id = bot_profile["us_daily_id"]
-            self.is_valud = True
+            self.is_valid = True
         except:
             print("Error reading profile.")

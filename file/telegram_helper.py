@@ -32,19 +32,17 @@ class TelegramHelper():
             return None
 
 class TelegramBotProfile():
-    @staticmethod
-    def example_profile():
-        bot_profile = {
-            "bot_token": "PLACE_YOUR_TOKEN_HERE",
-            "chat_id": "SOME_NUMBER",
-            "healthcheck_thread_id": "SOME_NUMBER",
-            "alert_thread_id": "SOME_NUMBER",
-            "daily_report_id": "SOME_NUMBER",
-            "daily_screener_id": "SOME_NUMBER",
-            "hk_daily_id": "SOME_NUMBER",
-            "us_daily_id": "SOME_NUMBER",
-        }
-        return bot_profile
+    TG_BOT_UPDATE_URL = "https://api.telegram.org/bot{}/getUpdates"
+    TG_BOT_PROFILE_EXAMPLE = {
+        "bot_token": "PLACE_YOUR_TOKEN_HERE",
+        "chat_id": "SOME_NUMBER",
+        "healthcheck_thread_id": "SOME_NUMBER",
+        "alert_thread_id": "SOME_NUMBER",
+        "daily_report_id": "SOME_NUMBER",
+        "daily_screener_id": "SOME_NUMBER",
+        "hk_daily_id": "SOME_NUMBER",
+        "us_daily_id": "SOME_NUMBER",
+    }
 
     def __init__(self, bot_profile):
         self.is_valid = False

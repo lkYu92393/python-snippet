@@ -31,7 +31,7 @@ def generate_test_data(number = 16):
     image_path = ensure_dummy_image(f"{image_dir}/{file_name}.jpg", "SAMPLE")
     return [
         Entry(id=f"{i:03d}", title=f"Entry_{i}", summary=f"Details for entry {i}.", image_path=image_path)
-        for i in range(1, 81)
+        for i in range(1, number)
     ]
 
 

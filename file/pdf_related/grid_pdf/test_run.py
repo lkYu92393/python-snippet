@@ -1,3 +1,4 @@
+import os
 from gen import PDFConfig, Entry, GridPDF
 
 

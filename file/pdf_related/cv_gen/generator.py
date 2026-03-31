@@ -51,8 +51,7 @@ class CVGenerator(FPDF):
         # Salary
         self.set_font('DejaVu', '', self.resolver.get_font_size(style['salary']['font_size']))
         self.set_text_color(*self.resolver.get_color(style['salary']['color']))
-        salary_text = f"Current salary: {contact['current_salary']}, Expected salary: {contact['expected_salary']}, Available on {contact['available_date']}"
-        self.cell(0, style['salary']['height'], salary_text, ln=True)
+        self.cell(0, style['salary']['height'], contact['summary'], ln=True)
         
         self.ln(self.resolver.get_spacing(style['spacing_after']))
     

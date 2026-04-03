@@ -9,7 +9,7 @@ class ColumnItem:
 
 @dataclass
 class ContactInfo:
-    name: List[str] = field(default=[])
-    contacts: List[str] = field(default=[])
-    summaries: List[str] = field(default=[])
+    name: List[str] = field(default_factory=list)
+    contacts: List[str] = field(default_factory=list)
+    summaries: List[str] = field(default_factory=list)
 

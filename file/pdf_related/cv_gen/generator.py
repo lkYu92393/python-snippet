@@ -193,71 +193,57 @@ class CVGenerator(FPDF):
             self.cell(0, style['degree']['height'], edu['degree'], ln=True)
             
             self.ln(self.resolver.get_spacing(style['spacing_after']))
-    
+        
+    def render_columns(self, items, section_name):
+        """Render column-based sections (languages, skills) - UNIFIED METHOD"""
+        style = self.resolver.get_section_style(section_name)
+        col_layout = self.resolver.get_column_layout(section_name)
+        
+        # Determine key names based on section
+        if section_name == 'languages':
+            title_key, subtitle_key = 'language', 'proficiency'
+        else:  # skills
+            title_key, subtitle_key = 'category', 'skills'
+        
+        col_count = 0
+        start_x = self.get_x()
+        start_y = self.get_y()
+        
+        for item in items:
+            if not item.get(title_key, '').strip():
+                continue
+            
+            x_pos = start_x + (col_count * col_layout['column_width'])
+            self.set_xy(x_pos, start_y)
+            
+            # Title (bold)
+            self.set_font('DejaVu', 'B', self.resolver.get_font_size(style[title_key]['font_size']))
+            self.set_text_color(*self.resolver.get_color(style[title_key]['color']))
+            self.cell(col_layout['column_cell_width'], style[title_key]['height'], item[title_key], ln=False)
+            
+            # Subtitle (regular)
+            self.set_xy(x_pos, start_y + style[title_key]['height'])
+            self.set_font('DejaVu', '', self.resolver.get_font_size(style[subtitle_key]['font_size']))
+            self.set_text_color(*self.resolver.get_color(style[subtitle_key]['color']))
+            self.cell(col_layout['column_cell_width'], style[subtitle_key]['height'], item[subtitle_key], ln=False)
+            
+            col_count += 1
+            if col_count >= col_layout['column_count']:
+                col_count = 0
+                start_y += col_layout['row_spacing']
+        
+        self.ln(self.resolver.get_spacing(style['spacing_after']))
+
+
+    # Update render_languages and render_skills to call the unified method
     def render_languages(self, languages):
         """Render languages in columns"""
-        style = self.resolver.get_section_style('languages')
-        
-        col_count = 0
-        start_x = self.get_x()
-        start_y = self.get_y()
-        
-        for lang in languages:
-            if not lang.get('language', '').strip():
-                continue
-            
-            x_pos = start_x + (col_count * self.layout['column_width'])
-            self.set_xy(x_pos, start_y)
-            
-            font_style = 'B' if style['language'].get('bold', False) else ''
-            self.set_font('DejaVu', font_style, self.resolver.get_font_size(style['language']['font_size']))
-            self.set_text_color(*self.resolver.get_color(style['language']['color']))
-            self.cell(self.layout['column_cell_width'], style['language']['height'], lang['language'], ln=False)
-            
-            self.set_xy(x_pos, start_y + style['language']['height'])
-            self.set_font('DejaVu', '', self.resolver.get_font_size(style['proficiency']['font_size']))
-            self.set_text_color(*self.resolver.get_color(style['proficiency']['color']))
-            self.cell(self.layout['column_cell_width'], style['proficiency']['height'], lang['proficiency'], ln=False)
-            
-            col_count += 1
-            if col_count >= CONFIG['layout']['column_count']:
-                col_count = 0
-                start_y += style['row_spacing']
-        
-        self.ln(self.resolver.get_spacing(style['spacing_after']))
-    
+        self.render_columns(languages, 'languages')
+
     def render_skills(self, skills):
         """Render skills in columns"""
-        style = self.resolver.get_section_style('skills')
-        
-        col_count = 0
-        start_x = self.get_x()
-        start_y = self.get_y()
-        
-        for skill in skills:
-            if not skill.get('category', '').strip():
-                continue
-            
-            x_pos = start_x + (col_count * self.layout['column_width'])
-            self.set_xy(x_pos, start_y)
-            
-            font_style = 'B' if style['category'].get('bold', False) else ''
-            self.set_font('DejaVu', font_style, self.resolver.get_font_size(style['category']['font_size']))
-            self.set_text_color(*self.resolver.get_color(style['category']['color']))
-            self.cell(self.layout['column_cell_width'], style['category']['height'], skill['category'], ln=False)
-            
-            self.set_xy(x_pos, start_y + style['category']['height'])
-            self.set_font('DejaVu', '', self.resolver.get_font_size(style['skills']['font_size']))
-            self.set_text_color(*self.resolver.get_color(style['skills']['color']))
-            self.cell(self.layout['column_cell_width'], style['skills']['height'], skill['skills'], ln=False)
-            
-            col_count += 1
-            if col_count >= CONFIG['layout']['column_count']:
-                col_count = 0
-                start_y += style['row_spacing']
-        
-        self.ln(self.resolver.get_spacing(style['spacing_after']))
-    
+        self.render_columns(skills, 'skills')
+
     # ============================================
     # MAIN GENERATE METHOD
     # ============================================

@@ -7,7 +7,7 @@ CONFIG = {
     'page': {'width': 210, 'height': 297},
     'margins': {'left': 15, 'right': 15, 'top': 15, 'bottom': 15},
     'layout': {
-        'column_count': 3,
+        'column_count': 2,
         'name_width_ratio': 0.65,
         'date_width_ratio': 0.35,
         'bullet_indent': 15,
@@ -77,13 +77,16 @@ SECTION_STYLES = {
         'proficiency': {'font_size': 'default', 'color': 'primary', 'height': 5},
         'spacing_after': 'medium',
         'row_spacing': 12,
+        'column_count': 2,  # ← ADD THIS
     },
+    
     'skills': {
         'title': {'font_size': 'section_title', 'color': 'primary', 'height': 7, 'bold': True},
         'category': {'font_size': 'default', 'color': 'primary', 'height': 5, 'bold': True},
         'skills': {'font_size': 'default', 'color': 'primary', 'height': 5},
         'spacing_after': 'medium',
         'row_spacing': 12,
+        'column_count': 3,  # ← ADD THIS
     },
 }
 

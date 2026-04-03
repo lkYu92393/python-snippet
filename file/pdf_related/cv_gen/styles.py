@@ -49,3 +49,21 @@ class StyleResolver:
             'line_length': available_width,
             'bullet_indent': self.config['layout']['bullet_indent'],
         }
+
+    def get_column_layout(self, section_name: str):
+        """Get column layout for a specific section"""
+        section_style = self.section_styles.get(section_name, {})
+        column_count = section_style.get('column_count', self.config['layout']['column_count'])
+        
+        available_width = (
+            self.config['page']['width'] 
+            - self.config['margins']['left'] 
+            - self.config['margins']['right']
+        )
+        
+        return {
+            'column_count': column_count,
+            'column_width': available_width / column_count,
+            'column_cell_width': (available_width / column_count) - 5,
+            'row_spacing': section_style.get('row_spacing', 12),
+        }

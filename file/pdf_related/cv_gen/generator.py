@@ -193,39 +193,42 @@ class CVGenerator(FPDF):
             self.cell(0, style['degree']['height'], edu['degree'], ln=True)
             
             self.ln(self.resolver.get_spacing(style['spacing_after']))
-        
+
+
     def render_columns(self, items, section_name):
         """Render column-based sections (languages, skills) - UNIFIED METHOD"""
         style = self.resolver.get_section_style(section_name)
         col_layout = self.resolver.get_column_layout(section_name)
-        
-        # Determine key names based on section
-        if section_name == 'languages':
-            title_key, subtitle_key = 'language', 'proficiency'
-        else:  # skills
-            title_key, subtitle_key = 'category', 'skills'
         
         col_count = 0
         start_x = self.get_x()
         start_y = self.get_y()
         
         for item in items:
-            if not item.get(title_key, '').strip():
+            # Support both dataclass and dict
+            if hasattr(item, 'title'):
+                title = item.title
+                text = item.text
+            else:
+                title = item.get('title', item.get('language', item.get('category', '')))
+                text = item.get('text', item.get('proficiency', item.get('skills', '')))
+            
+            if not str(title).strip():
                 continue
             
             x_pos = start_x + (col_count * col_layout['column_width'])
             self.set_xy(x_pos, start_y)
             
             # Title (bold)
-            self.set_font('DejaVu', 'B', self.resolver.get_font_size(style[title_key]['font_size']))
-            self.set_text_color(*self.resolver.get_color(style[title_key]['color']))
-            self.cell(col_layout['column_cell_width'], style[title_key]['height'], item[title_key], ln=False)
+            self.set_font('DejaVu', 'B', self.resolver.get_font_size(style['language']['font_size']))
+            self.set_text_color(*self.resolver.get_color('primary'))
+            self.cell(col_layout['column_cell_width'], style['language']['height'], str(title), ln=False)
             
-            # Subtitle (regular)
-            self.set_xy(x_pos, start_y + style[title_key]['height'])
-            self.set_font('DejaVu', '', self.resolver.get_font_size(style[subtitle_key]['font_size']))
-            self.set_text_color(*self.resolver.get_color(style[subtitle_key]['color']))
-            self.cell(col_layout['column_cell_width'], style[subtitle_key]['height'], item[subtitle_key], ln=False)
+            # Text (regular)
+            self.set_xy(x_pos, start_y + style['language']['height'])
+            self.set_font('DejaVu', '', self.resolver.get_font_size(style['proficiency']['font_size']))
+            self.set_text_color(*self.resolver.get_color('primary'))
+            self.cell(col_layout['column_cell_width'], style['proficiency']['height'], str(text), ln=False)
             
             col_count += 1
             if col_count >= col_layout['column_count']:
@@ -233,7 +236,6 @@ class CVGenerator(FPDF):
                 start_y += col_layout['row_spacing']
         
         self.ln(self.resolver.get_spacing(style['spacing_after']))
-
 
     # Update render_languages and render_skills to call the unified method
     def render_languages(self, languages):

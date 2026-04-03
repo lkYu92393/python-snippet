@@ -45,13 +45,15 @@ class CVGenerator(FPDF):
         # Contact
         self.set_font('DejaVu', '', self.resolver.get_font_size(style['contact']['font_size']))
         self.set_text_color(*self.resolver.get_color(style['contact']['color']))
-        contact_line = f"{contact['email']}  |  {contact['phone']}  |  {contact['github']}"
+        contact_line = " | ".join(contact.get("contacts", []))
+        # contact_line = f"{contact['email']}  |  {contact['phone']}  |  {contact['github']}"
         self.cell(0, style['contact']['height'], contact_line, ln=True, align='C')
         
         # Salary
         self.set_font('DejaVu', '', self.resolver.get_font_size(style['salary']['font_size']))
         self.set_text_color(*self.resolver.get_color(style['salary']['color']))
-        self.cell(0, style['salary']['height'], contact['summary'], ln=True, align='C')
+        summary_line = " | ".join(contact.get("summaries", []))
+        self.cell(0, style['salary']['height'], summary_line, ln=True, align='C')
         
         self.ln(self.resolver.get_spacing(style['spacing_after']))
     

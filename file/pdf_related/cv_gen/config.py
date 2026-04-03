@@ -42,7 +42,7 @@ SECTION_STYLES = {
         'name': {'font_size': 'name', 'color': 'primary', 'height': 14, 'bold': True},
         'contact': {'font_size': 'default', 'color': 'muted', 'height': 5},
         'salary': {'font_size': 'default', 'color': 'primary', 'height': 5},
-        'spacing_after': 'small',
+        'spacing_after': 'tight',
     },
     'work_experience': {
         'title': {'font_size': 'section_title', 'color': 'primary', 'height': 7, 'bold': True},

@@ -112,15 +112,18 @@ class CVGenerator(FPDF):
             self.set_text_color(*self.resolver.get_color(parent_style['project_title']['color']))
             self.cell(0, parent_style['project_title']['height'], project['name'], ln=True)
             
-            # Tech stack + description
-            self.set_font('DejaVu', '', self.resolver.get_font_size(parent_style['description']['font_size']))
-            self.set_text_color(*self.resolver.get_color(parent_style['description']['color']))
-            
+            # Tech stack (separate line)
             if project.get('tech_stack'):
-                full_text = f"Tech stack: {project['tech_stack']} {project['description']}"
-            else:
-                full_text = project['description']
-            self.multi_cell(0, parent_style['description']['height'], full_text)
+                self.set_font('DejaVu', '', self.resolver.get_font_size(parent_style['description']['font_size']))
+                self.set_text_color(*self.resolver.get_color(parent_style['description']['color']))
+                self.set_font('DejaVu', 'B', self.resolver.get_font_size(parent_style['description']['font_size']))
+                self.cell(0, parent_style['description']['height'], f"Tech stack: {project['tech_stack']}", ln=True)
+            
+            # Description (separate paragraph)
+            if project.get('description'):
+                self.set_font('DejaVu', '', self.resolver.get_font_size(parent_style['description']['font_size']))
+                self.set_text_color(*self.resolver.get_color(parent_style['description']['color']))
+                self.multi_cell(0, parent_style['description']['height'], project['description'])
             
             # Bullets
             if project.get('bullets'):
@@ -131,7 +134,8 @@ class CVGenerator(FPDF):
                         self.set_text_color(*self.resolver.get_color(parent_style['bullet']['color']))
                         self.set_x(self.layout['bullet_indent'])
                         self.multi_cell(0, parent_style['bullet']['height'], f"•  {bullet}")
-    
+
+
     def render_projects(self, projects):
         """Render projects as separate section"""
         style = self.resolver.get_section_style('projects')
@@ -150,15 +154,17 @@ class CVGenerator(FPDF):
             self.set_text_color(*self.resolver.get_color(style['date']['color']))
             self.cell(self.layout['date_cell_width'], style['date']['height'], project.get('date', ''), ln=True, align='R')
             
-            # Tech stack + description
-            self.set_font('DejaVu', '', self.resolver.get_font_size(style['description']['font_size']))
-            self.set_text_color(*self.resolver.get_color(style['description']['color']))
-            
+            # Tech stack (separate line)
             if project.get('tech_stack'):
-                full_text = f"Tech stack: {project['tech_stack']} {project['description']}"
-            else:
-                full_text = project['description']
-            self.multi_cell(0, style['description']['height'], full_text)
+                self.set_font('DejaVu', 'B', self.resolver.get_font_size(style['description']['font_size']))
+                self.set_text_color(*self.resolver.get_color(style['description']['color']))
+                self.cell(0, style['description']['height'], f"Tech stack: {project['tech_stack']}", ln=True)
+            
+            # Description (separate paragraph)
+            if project.get('description'):
+                self.set_font('DejaVu', '', self.resolver.get_font_size(style['description']['font_size']))
+                self.set_text_color(*self.resolver.get_color(style['description']['color']))
+                self.multi_cell(0, style['description']['height'], project['description'])
             
             # Bullets
             if project.get('bullets'):

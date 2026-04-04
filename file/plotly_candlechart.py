@@ -65,9 +65,9 @@ class CandleChart:
         fig = make_subplots(rows=len(self.titles), cols=1, shared_xaxes=True,
                             vertical_spacing=0.03, subplot_titles=self.titles,
                             row_width=self.width)
-        
+
         self.row = 1
-        
+
         fig.add_trace(go.Candlestick(
             x=self.data['Date'],
             open=self.data['Open'],
@@ -128,7 +128,7 @@ class CandleChart:
             self.row += 1
             tsi_line_list = [
                 ["tsi", "blue", "TSI"],
-                ["tsi_smooth", "blue", "TSI_SMOOTH"],
+                ["tsi_smooth", "red", "TSI_SMOOTH"],
             ]
             for item in tsi_line_list:
                 fig.add_trace(go.Scatter(x=self.data.index, y=self.data[item[0]], line=go.scatter.Line(color=item[1]), showlegend=False, name=item[2]), row=self.row, col=1)

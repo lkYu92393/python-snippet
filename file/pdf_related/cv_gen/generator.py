@@ -116,7 +116,7 @@ class CVGenerator(FPDF):
             if project.get('tech_stack'):
                 self.set_font('DejaVu', '', self.resolver.get_font_size(parent_style['description']['font_size']))
                 self.set_text_color(*self.resolver.get_color(parent_style['description']['color']))
-                self.set_font('DejaVu', 'B', self.resolver.get_font_size(parent_style['description']['font_size']))
+                self.set_font('DejaVu', '', self.resolver.get_font_size(parent_style['description']['font_size']))
                 self.cell(0, parent_style['description']['height'], f"Tech stack: {project['tech_stack']}", ln=True)
             
             # Description (separate paragraph)
@@ -156,7 +156,7 @@ class CVGenerator(FPDF):
             
             # Tech stack (separate line)
             if project.get('tech_stack'):
-                self.set_font('DejaVu', 'B', self.resolver.get_font_size(style['description']['font_size']))
+                self.set_font('DejaVu', '', self.resolver.get_font_size(style['description']['font_size']))
                 self.set_text_color(*self.resolver.get_color(style['description']['color']))
                 self.cell(0, style['description']['height'], f"Tech stack: {project['tech_stack']}", ln=True)
             
@@ -247,7 +247,7 @@ class CVGenerator(FPDF):
                 start_y += col_layout['row_spacing']
         
         self.ln(self.resolver.get_spacing(style['spacing_after']))
-        
+
     # Update render_languages and render_skills to call the unified method
     def render_languages(self, languages):
         """Render languages in columns"""

@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from fpdf import FPDF
 from fpdf.enums import Align, XPos, YPos
+from io import BytesIO
 import os
 
 # ==========================================
@@ -63,7 +64,7 @@ class Entry:
     id: str
     title: str
     summary: str
-    image_path: Optional[str] = None
+    image_source: Optional[Union[str, BytesIO]] = None  # Can be path OR BytesIO
 
 # ==========================================
 # 4. PDF GENERATOR CLASS
@@ -157,55 +158,63 @@ class GridPDF(FPDF):
         self.multi_cell(0, 10, entry.summary)
         self.ln(cfg.spacing['medium'])
 
-        # ✅ Image with Full Width
-        if entry.image_path and os.path.exists(entry.image_path):
+        # ✅ Image with Full Width (supports both path and BytesIO)
+        if entry.image_source is not None:
             try:
-                # Calculate available width - use full page width minus margins
+                # Calculate available width
                 available_width = self.w - self.l_margin - self.r_margin
-
-                # Alternative calculation if the above doesn't work:
-                # available_width = cfg.page_width - cfg.margins['left'] - cfg.margins['right']
-
-                # print(f"DEBUG: Page width={self.w}mm, Left margin={self.l_margin}mm, Right margin={self.r_margin}mm")
-                # print(f"DEBUG: Available width for image={available_width}mm")
-
-                # Save current position
-                x_start = self.get_x()
-
-                # Move to left margin
+                
+                # Position at left margin
                 self.set_x(cfg.margins['left'])
-
-                # Insert image with full available width
+                
+                # Handle both string path and BytesIO
+                if isinstance(entry.image_source, str):
+                    # It's a file path
+                    if not os.path.exists(entry.image_source):
+                        raise FileNotFoundError(f"Image not found: {entry.image_source}")
+                    image_source = entry.image_source
+                    source_type = "file"
+                elif isinstance(entry.image_source, BytesIO):
+                    # It's a BytesIO object
+                    image_source = entry.image_source
+                    source_type = "BytesIO"
+                else:
+                    raise TypeError(f"Unsupported image source type: {type(entry.image_source)}")
+                
+                # Insert image
                 self.image(
-                    entry.image_path,
-                    x=self.get_x(),  # Explicit x position at left margin
-                    y=None,
-                    w=available_width  # Full width
+                    image_source, 
+                    x=self.get_x(),
+                    y=None, 
+                    w=available_width
                 )
-
+                
                 # Move cursor down past the image
-                self.set_y(self.get_y() + cfg.spacing['medium'])
-
-                # print(f"✓ Image added: {entry.image_path} (width: {available_width}mm)")
+                self.ln(cfg.spacing['medium'])
+                
+                print(f"✓ Image added ({source_type}): {entry.title}")
+                
             except Exception as e:
                 self.set_text_color(255, 0, 0)
                 self.cell(0, 10, f"Error loading image: {e}", align='C')
                 self.set_text_color(*cfg.colors.secondary)
+                self.ln(cfg.spacing['medium'])
         else:
             # Placeholder if no image
             available_width = self.w - self.l_margin - self.r_margin
             self.set_fill_color(*cfg.colors.light)
             self.rect(
-                self.l_margin,
-                self.get_y(),
-                available_width,
-                50,
+                self.l_margin, 
+                self.get_y(), 
+                available_width, 
+                50, 
                 style='F'
             )
             self.set_xy(self.l_margin, self.get_y() + 20)
             self.set_font('Helvetica', 'I', 10)
             self.set_text_color(*cfg.colors.secondary)
             self.cell(available_width, 10, "No Image Available", align='C')
+            self.ln(cfg.spacing['medium'])
 
     def generate_document(self, entries: List[Entry], output_path: str):
         self.add_toc_page(entries)

@@ -138,83 +138,134 @@ class GridPDF(FPDF):
 
             entries_on_page += 1
 
-    def add_detail_page(self, entry: Entry):
-        self.add_page()
-        cfg = self.config
-
-        if entry.id in self._link_ids:
-            link_id = self._link_ids[entry.id]
-            self.set_link(link_id, page=self.page_no(), y=0)
-
-        # Header
-        self.set_font('Helvetica', 'B', cfg.fonts.name)
-        self.set_text_color(*cfg.colors.primary)
-        self.cell(0, 15, entry.title, align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        self.ln(cfg.spacing['small'])
-
-        # Summary
-        self.set_font('Helvetica', '', cfg.fonts.default)
-        self.set_text_color(*cfg.colors.secondary)
-        self.multi_cell(0, 10, entry.summary)
-        self.ln(cfg.spacing['medium'])
-
-        # ✅ Image with Full Width (supports both path and BytesIO)
-        if entry.image_source is not None:
-            try:
-                # Calculate available width
-                available_width = self.w - self.l_margin - self.r_margin
-                
-                # Position at left margin
-                self.set_x(cfg.margins['left'])
-                
-                # Handle both string path and BytesIO
-                if isinstance(entry.image_source, str):
-                    # It's a file path
-                    if not os.path.exists(entry.image_source):
-                        raise FileNotFoundError(f"Image not found: {entry.image_source}")
-                    image_source = entry.image_source
-                    source_type = "file"
-                elif isinstance(entry.image_source, BytesIO):
-                    # It's a BytesIO object
-                    image_source = entry.image_source
-                    source_type = "BytesIO"
-                else:
-                    raise TypeError(f"Unsupported image source type: {type(entry.image_source)}")
-                
-                # Insert image
-                self.image(
-                    image_source, 
-                    x=self.get_x(),
-                    y=None, 
-                    w=available_width
-                )
-                
-                # Move cursor down past the image
-                self.ln(cfg.spacing['medium'])
-                
-                print(f"✓ Image added ({source_type}): {entry.title}")
-                
-            except Exception as e:
-                self.set_text_color(255, 0, 0)
-                self.cell(0, 10, f"Error loading image: {e}", align='C')
-                self.set_text_color(*cfg.colors.secondary)
-                self.ln(cfg.spacing['medium'])
-        else:
-            # Placeholder if no image
+def add_detail_page(self, entry: Entry):
+    self.add_page()
+    cfg = self.config
+    
+    if entry.id in self._link_ids:
+        link_id = self._link_ids[entry.id]
+        self.set_link(link_id, page=self.page_no(), y=0)
+    
+    # Header
+    self.set_font('Helvetica', 'B', cfg.fonts.name)
+    self.set_text_color(*cfg.colors.primary)
+    self.cell(0, 15, entry.title, align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    self.ln(cfg.spacing['small'])
+    
+    # Summary
+    self.set_font('Helvetica', '', cfg.fonts.default)
+    self.set_text_color(*cfg.colors.secondary)
+    self.multi_cell(0, 10, entry.summary)
+    self.ln(cfg.spacing['medium'])
+    
+    # ✅ Image with Auto-Fit (handles tall images)
+    if entry.image_source is not None:
+        try:
+            # Handle different image source types
+            if isinstance(entry.image_source, str):
+                if not os.path.exists(entry.image_source):
+                    raise FileNotFoundError(f"Image not found: {entry.image_source}")
+                image_source = entry.image_source
+                source_type = "file"
+            elif isinstance(entry.image_source, BytesIO):
+                image_source = entry.image_source
+                source_type = "BytesIO"
+            elif isinstance(entry.image_source, bytes):
+                image_source = BytesIO(entry.image_source)
+                source_type = "bytes"
+            else:
+                raise TypeError(f"Unsupported image source type: {type(entry.image_source)}")
+            
+            # Calculate available width
             available_width = self.w - self.l_margin - self.r_margin
-            self.set_fill_color(*cfg.colors.light)
-            self.rect(
-                self.l_margin, 
-                self.get_y(), 
-                available_width, 
-                50, 
-                style='F'
+            
+            # ✅ Get image dimensions to calculate aspect ratio
+            try:
+                from PIL import Image
+                if isinstance(image_source, str):
+                    img = Image.open(image_source)
+                else:
+                    # For BytesIO or bytes, seek to beginning
+                    if hasattr(image_source, 'seek'):
+                        image_source.seek(0)
+                    img = Image.open(image_source)
+                
+                img_width, img_height = img.size
+                aspect_ratio = img_height / img_width
+                
+                print(f"Image dimensions: {img_width}x{img_height}, aspect ratio: {aspect_ratio:.2f}")
+                
+            except ImportError:
+                print("⚠️  Pillow not installed. Cannot calculate image dimensions.")
+                aspect_ratio = 1.0  # Default assumption
+            except Exception as e:
+                print(f"⚠️  Could not get image dimensions: {e}")
+                aspect_ratio = 1.0
+            
+            # ✅ Calculate available height on current page
+            current_y = self.get_y()
+            available_height = self.h - self.t_margin - self.b_margin - current_y
+            
+            # Calculate image height if we use full width
+            calculated_height = available_width * aspect_ratio
+            
+            print(f"Available space: width={available_width:.1f}mm, height={available_height:.1f}mm")
+            print(f"Calculated image height: {calculated_height:.1f}mm")
+            
+            # ✅ Check if image needs page break or scaling
+            if calculated_height > available_height:
+                print(f"⚠️  Image too tall ({calculated_height:.1f}mm > {available_height:.1f}mm available)")
+                
+                # Option 1: Add page break before image
+                self.add_page()
+                self.set_x(cfg.margins['left'])
+                current_y = self.get_y()
+                available_height = self.h - self.t_margin - self.b_margin - current_y
+                print(f"Added page break. New available height: {available_height:.1f}mm")
+                
+                # Option 2: Scale down to fit (uncomment if preferred)
+                # calculated_height = available_height - 10  # Leave some margin
+                # available_width = calculated_height / aspect_ratio
+                # print(f"Scaled image to: {available_width:.1f}mm x {calculated_height:.1f}mm")
+            
+            # Position at left margin
+            self.set_x(cfg.margins['left'])
+            
+            # Insert image with calculated width (height auto-scales)
+            self.image(
+                image_source, 
+                x=self.get_x(),
+                y=None, 
+                w=available_width
+                # h=calculated_height  # Uncomment to force specific height
             )
-            self.set_xy(self.l_margin, self.get_y() + 20)
-            self.set_font('Helvetica', 'I', 10)
-            self.set_text_color(*cfg.colors.secondary)
-            self.cell(available_width, 10, "No Image Available", align='C')
+            
+            # Move cursor down past the image
             self.ln(cfg.spacing['medium'])
+            
+            print(f"✓ Image added ({source_type}): {entry.title}")
+            
+        except Exception as e:
+            self.set_text_color(255, 0, 0)
+            self.cell(0, 10, f"Error loading image: {e}", align='C')
+            self.set_text_color(*cfg.colors.secondary)
+            self.ln(cfg.spacing['medium'])
+    else:
+        # Placeholder if no image
+        available_width = self.w - self.l_margin - self.r_margin
+        self.set_fill_color(*cfg.colors.light)
+        self.rect(
+            self.l_margin, 
+            self.get_y(), 
+            available_width, 
+            50, 
+            style='F'
+        )
+        self.set_xy(self.l_margin, self.get_y() + 20)
+        self.set_font('Helvetica', 'I', 10)
+        self.set_text_color(*cfg.colors.secondary)
+        self.cell(available_width, 10, "No Image Available", align='C')
+        self.ln(cfg.spacing['medium'])
 
     def generate_document(self, entries: List[Entry], output_path: str):
         self.add_toc_page(entries)

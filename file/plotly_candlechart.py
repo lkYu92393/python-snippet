@@ -63,7 +63,7 @@ class CandleChart:
 
     def plot(self):
         fig = make_subplots(rows=len(self.titles), cols=1, shared_xaxes=True,
-                            vertical_spacing=0.03, subplot_titles=self.titles,
+                            vertical_spacing=0.02, subplot_titles=self.titles,
                             row_width=self.width)
 
         self.row = 1
@@ -74,26 +74,27 @@ class CandleChart:
             high=self.data['High'],
             low=self.data['Low'],
             close=self.data['Close'],
+            showlegend=False,
             name=self.name
         ), row=self.row, col=1)
 
         main_plot_list = [
-            ["ema11", "#FF97FF", "EMA11"],
-            ["ema25", "#FECB52", "EMA25"],
-            ["ema48", "#66AA00", "EMA48"],
-            ["ema200", "purple", "EMA200"],
-            ["bb_bbh", "blue", "BBH"],
-            ["bb_bbm", "blue", "BBM"],
-            ["bb_bbl", "blue", "BBL"],
-            ["super_bbh", "#B6E880", "SBBH"],
-            ["super_bbm", "green", "SBBM"],
-            ["super_bbl", "#B6E880", "SBBL"],
+            ["ema11", "#FF97FF", "EMA11", True],
+            ["ema25", "#FECB52", "EMA25", True],
+            ["ema48", "#66AA00", "EMA48", True],
+            ["ema200", "purple", "EMA200", True],
+            ["bb_bbh", "blue", "BBH", False],
+            ["bb_bbm", "blue", "BBM", False],
+            ["bb_bbl", "blue", "BBL", False],
+            ["super_bbh", "#B6E880", "SBBH", False],
+            ["super_bbm", "green", "SBBM", False],
+            ["super_bbl", "#B6E880", "SBBL", False],
         ]
 
         main_plot_list = [item for item in main_plot_list if item[0] in self.data.columns]
         for item in main_plot_list:
             fig.add_trace(go.Scatter(
-            x=self.data.index, y=self.data[item[0]], line=go.scatter.Line(color=item[1]), name=item[2]), row=self.row, col=1)
+            x=self.data.index, y=self.data[item[0]], line=go.scatter.Line(color=item[1]), showlegend=item[3], name=item[2]), row=self.row, col=1)
 
         self.row += 1
         positive_data = self.data[self.data["Close"] >= self.data["Open"]]
@@ -170,6 +171,8 @@ class CandleChart:
         
         zz_shapes = list(fig.layout.shapes)
         zz_annotations = list(fig.layout.annotations)
+        for annotation in zz_annotations:
+            annotation.font.size = 12
 
         
         fig.update_layout(margin=CandleChart.graph_margin,

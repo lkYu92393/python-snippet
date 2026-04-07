@@ -139,9 +139,21 @@ class GridPDF(FPDF):
             entries_on_page += 1
 
     def add_detail_page(self, entry: Entry):
-        self.add_page()
         cfg = self.config
         
+        # ✅ Calculate required page height BEFORE adding the page
+        required_height = self._calculate_required_height(entry)
+        
+        # Add page with custom height if needed
+        if required_height > cfg.page_height:
+            # Extend page height to fit content
+            custom_format = (cfg.page_width, required_height)
+            self.add_page(format=custom_format)
+            print(f"📄 Extended page height: {required_height:.1f}mm (was {cfg.page_height}mm)")
+        else:
+            self.add_page()
+        
+        # Set link destination
         if entry.id in self._link_ids:
             link_id = self._link_ids[entry.id]
             self.set_link(link_id, page=self.page_no(), y=0)
@@ -158,7 +170,7 @@ class GridPDF(FPDF):
         self.multi_cell(0, 10, entry.summary)
         self.ln(cfg.spacing['medium'])
         
-        # ✅ Image with Auto-Fit (handles tall images)
+        # Image
         if entry.image_source is not None:
             try:
                 # Handle different image source types
@@ -166,84 +178,31 @@ class GridPDF(FPDF):
                     if not os.path.exists(entry.image_source):
                         raise FileNotFoundError(f"Image not found: {entry.image_source}")
                     image_source = entry.image_source
-                    source_type = "file"
                 elif isinstance(entry.image_source, BytesIO):
                     image_source = entry.image_source
-                    source_type = "BytesIO"
                 elif isinstance(entry.image_source, bytes):
                     image_source = BytesIO(entry.image_source)
-                    source_type = "bytes"
                 else:
                     raise TypeError(f"Unsupported image source type: {type(entry.image_source)}")
                 
                 # Calculate available width
                 available_width = self.w - self.l_margin - self.r_margin
                 
-                # ✅ Get image dimensions to calculate aspect ratio
-                try:
-                    from PIL import Image
-                    if isinstance(image_source, str):
-                        img = Image.open(image_source)
-                    else:
-                        # For BytesIO or bytes, seek to beginning
-                        if hasattr(image_source, 'seek'):
-                            image_source.seek(0)
-                        img = Image.open(image_source)
-                    
-                    img_width, img_height = img.size
-                    aspect_ratio = img_height / img_width
-                    
-                    print(f"Image dimensions: {img_width}x{img_height}, aspect ratio: {aspect_ratio:.2f}")
-                    
-                except ImportError:
-                    print("⚠️  Pillow not installed. Cannot calculate image dimensions.")
-                    aspect_ratio = 1.0  # Default assumption
-                except Exception as e:
-                    print(f"⚠️  Could not get image dimensions: {e}")
-                    aspect_ratio = 1.0
-                
-                # ✅ Calculate available height on current page
-                current_y = self.get_y()
-                available_height = self.h - self.t_margin - self.b_margin - current_y
-                
-                # Calculate image height if we use full width
-                calculated_height = available_width * aspect_ratio
-                
-                print(f"Available space: width={available_width:.1f}mm, height={available_height:.1f}mm")
-                print(f"Calculated image height: {calculated_height:.1f}mm")
-                
-                # ✅ Check if image needs page break or scaling
-                if calculated_height > available_height:
-                    print(f"⚠️  Image too tall ({calculated_height:.1f}mm > {available_height:.1f}mm available)")
-                    
-                    # Option 1: Add page break before image
-                    self.add_page()
-                    self.set_x(cfg.margins['left'])
-                    current_y = self.get_y()
-                    available_height = self.h - self.t_margin - self.b_margin - current_y
-                    print(f"Added page break. New available height: {available_height:.1f}mm")
-                    
-                    # Option 2: Scale down to fit (uncomment if preferred)
-                    # calculated_height = available_height - 10  # Leave some margin
-                    # available_width = calculated_height / aspect_ratio
-                    # print(f"Scaled image to: {available_width:.1f}mm x {calculated_height:.1f}mm")
-                
                 # Position at left margin
                 self.set_x(cfg.margins['left'])
                 
-                # Insert image with calculated width (height auto-scales)
+                # Insert image with full width
                 self.image(
                     image_source, 
                     x=self.get_x(),
                     y=None, 
                     w=available_width
-                    # h=calculated_height  # Uncomment to force specific height
                 )
                 
-                # Move cursor down past the image
+                # Move cursor down
                 self.ln(cfg.spacing['medium'])
                 
-                print(f"✓ Image added ({source_type}): {entry.title}")
+                print(f"✓ Image added: {entry.title}")
                 
             except Exception as e:
                 self.set_text_color(255, 0, 0)
@@ -266,6 +225,56 @@ class GridPDF(FPDF):
             self.set_text_color(*cfg.colors.secondary)
             self.cell(available_width, 10, "No Image Available", align='C')
             self.ln(cfg.spacing['medium'])
+
+    def _calculate_required_height(self, entry: Entry) -> float:
+        """
+        Calculate the total height needed for the detail page.
+        """
+        cfg = self.config
+        
+        # Start with margins
+        total_height = cfg.margins['top'] + cfg.margins['bottom']
+        
+        # Header height
+        total_height += 15 + cfg.spacing['small']
+        
+        # Summary height (estimate based on text length)
+        if entry.summary:
+            lines = len(entry.summary) // 80 + 1  # Rough estimate
+            total_height += lines * 10 + cfg.spacing['medium']
+        
+        # Image height
+        if entry.image_source is not None:
+            try:
+                # Get image dimensions
+                from PIL import Image
+                if isinstance(entry.image_source, str):
+                    img = Image.open(entry.image_source)
+                elif isinstance(entry.image_source, BytesIO):
+                    entry.image_source.seek(0)
+                    img = Image.open(entry.image_source)
+                elif isinstance(entry.image_source, bytes):
+                    img = Image.open(BytesIO(entry.image_source))
+                else:
+                    raise TypeError("Unsupported image type")
+                
+                img_width, img_height = img.size
+                available_width = cfg.page_width - cfg.margins['left'] - cfg.margins['right']
+                
+                # Calculate scaled height
+                aspect_ratio = img_height / img_width
+                image_height = available_width * aspect_ratio
+                
+                total_height += image_height + cfg.spacing['medium']
+                
+            except Exception as e:
+                print(f"⚠️  Could not calculate image height: {e}")
+                total_height += 100  # Default estimate
+        
+        # Add some padding
+        total_height += 20
+        
+        return total_height
 
     def generate_document(self, entries: List[Entry], output_path: str):
         self.add_toc_page(entries)

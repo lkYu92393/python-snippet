@@ -57,8 +57,48 @@ class CVGenerator(FPDF):
         
         self.ln(self.resolver.get_spacing(style['spacing_after']))
     
+    def check_space(self, required_height):
+        """Check if there's enough space, add new page if needed"""
+        current_y = self.get_y()
+        available_height = CONFIG['page']['height'] - CONFIG['margins']['top'] - CONFIG['margins']['bottom']
+        space_remaining = available_height - (current_y - CONFIG['margins']['top'])
+        
+        if space_remaining < required_height:
+            self.add_page()
+            self.set_margins(
+                left=CONFIG['margins']['left'],
+                top=CONFIG['margins']['top'],
+                right=CONFIG['margins']['right']
+            )
+            return True  # Page was added
+        return False  # No page break needed
+
+
+    def check_space_for_section(self, section_name, items_count=1):
+        """Check space for a specific section type"""
+        # Estimate required height based on section type
+        section_heights = {
+            'work_experience': 60,   # Job + maybe projects
+            'projects': 80,          # Project with description
+            'education': 60,         # Single education entry
+            'languages': 40,         # Column-based
+            'skills': 40,            # Column-based
+            'section_title': 15,     # Title + line + spacing
+        }
+        
+        base_height = section_heights.get(section_name, 50)
+        # Multiply by item count for sections with multiple items
+        required_height = base_height * max(1, items_count)
+        
+        return self.check_space(required_height)
+
+
+    # Update render_section_title to check space
     def render_section_title(self, title):
         """Render section title with underline"""
+        # Check if we need a new page for this section
+        self.check_space_for_section('section_title')
+        
         style = self.resolver.get_section_style('work_experience')['title']
         
         self.ln(self.resolver.get_spacing('large'))
@@ -73,7 +113,9 @@ class CVGenerator(FPDF):
         self.set_draw_color(*self.resolver.get_color('line'))
         self.line(x, y + LINE_STYLE['offset_y'], x + self.layout['line_length'], y + LINE_STYLE['offset_y'])
         self.ln(self.resolver.get_spacing('medium'))
-    
+
+
+    # Update render_work_experience to check space per job
     def render_work_experience(self, jobs, include_projects=True):
         """Render work experience (optionally with projects)"""
         style = self.resolver.get_section_style('work_experience')
@@ -81,6 +123,11 @@ class CVGenerator(FPDF):
         for job in jobs:
             if not job.get('position', '').strip():
                 continue
+            
+            # Check space before each job entry
+            project_count = len(job.get('projects', [])) if include_projects else 0
+            required_height = 30 + (project_count * 50)  # Base + projects
+            self.check_space(required_height)
             
             # Job title and company
             job_title_text = f"{job['position']} - {job['company']}"
@@ -98,12 +145,17 @@ class CVGenerator(FPDF):
                 self._render_projects_nested(job['projects'], style)
             
             self.ln(self.resolver.get_spacing(style['spacing_after_job']))
-    
+
+
+    # Update _render_projects_nested to check space per project
     def _render_projects_nested(self, projects, parent_style):
         """Render projects nested within a job"""
         for project in projects:
             if not project.get('name', '').strip():
                 continue
+            
+            # Check space before each project
+            self.check_space(50)
             
             self.ln(self.resolver.get_spacing(parent_style['spacing_after_project']))
             
@@ -116,7 +168,6 @@ class CVGenerator(FPDF):
             if project.get('tech_stack'):
                 self.set_font('DejaVu', '', self.resolver.get_font_size(parent_style['description']['font_size']))
                 self.set_text_color(*self.resolver.get_color(parent_style['description']['color']))
-                self.set_font('DejaVu', '', self.resolver.get_font_size(parent_style['description']['font_size']))
                 self.cell(0, parent_style['description']['height'], f"Tech stack: {project['tech_stack']}", ln=True)
             
             # Description (separate paragraph)
@@ -136,6 +187,7 @@ class CVGenerator(FPDF):
                         self.multi_cell(0, parent_style['bullet']['height'], f"•  {bullet}")
 
 
+    # Update render_projects to check space
     def render_projects(self, projects):
         """Render projects as separate section"""
         style = self.resolver.get_section_style('projects')
@@ -143,6 +195,9 @@ class CVGenerator(FPDF):
         for project in projects:
             if not project.get('name', '').strip():
                 continue
+            
+            # Check space before each project
+            self.check_space(60)
             
             # Project title
             self.set_font('DejaVu', 'B', self.resolver.get_font_size(style['project_title']['font_size']))
@@ -177,7 +232,9 @@ class CVGenerator(FPDF):
                         self.multi_cell(0, style['bullet']['height'], f"•  {bullet}")
             
             self.ln(self.resolver.get_spacing(style['spacing_after_project']))
-    
+
+
+    # Update render_education to check space
     def render_education(self, education):
         """Render education section"""
         style = self.resolver.get_section_style('education')
@@ -185,6 +242,9 @@ class CVGenerator(FPDF):
         for edu in education:
             if not edu.get('institution', '').strip():
                 continue
+            
+            # Check space BEFORE each education entry (increased from 30 to 50)
+            self.check_space(50)
             
             self.set_font('DejaVu', 'B', self.resolver.get_font_size(style['institution']['font_size']))
             self.set_text_color(*self.resolver.get_color(style['institution']['color']))
@@ -200,8 +260,13 @@ class CVGenerator(FPDF):
             
             self.ln(self.resolver.get_spacing(style['spacing_after']))
 
+
+    # Update render_columns to check space
     def render_columns(self, items, section_name):
         """Render column-based sections (languages, skills) - UNIFIED METHOD"""
+        # Check space for entire column section
+        self.check_space_for_section(section_name, len(items))
+        
         style = self.resolver.get_section_style(section_name)
         col_layout = self.resolver.get_column_layout(section_name)
         
@@ -256,6 +321,156 @@ class CVGenerator(FPDF):
     def render_skills(self, skills):
         """Render skills in columns"""
         self.render_columns(skills, 'skills')
+
+    def calculate_section_height(self, section_type, items):
+        """Calculate the actual height needed for a section"""
+        
+        if section_type == 'education':
+            return self._calculate_education_height(items)
+        elif section_type == 'work_experience':
+            return self._calculate_work_experience_height(items)
+        elif section_type == 'projects':
+            return self._calculate_projects_height(items)
+        elif section_type in ['languages', 'skills']:
+            return self._calculate_columns_height(items, section_type)
+        else:
+            return 50  # Default fallback
+
+
+    def _calculate_education_height(self, education_items):
+        """Calculate height needed for education section"""
+        style = self.resolver.get_section_style('education')
+        total_height = 0
+        
+        for edu in education_items:
+            if not edu.get('institution', '').strip():
+                continue
+            
+            # Institution line + degree line + spacing
+            total_height += style['institution']['height']  # Institution name
+            total_height += style['degree']['height']       # Degree
+            total_height += self.resolver.get_spacing(style['spacing_after'])
+        
+        return total_height
+
+
+    def _calculate_work_experience_height(self, jobs, include_projects=True):
+        """Calculate height needed for work experience section"""
+        style = self.resolver.get_section_style('work_experience')
+        total_height = 0
+        
+        for job in jobs:
+            if not job.get('position', '').strip():
+                continue
+            
+            # Job title line + date line + spacing
+            total_height += style['job_title']['height']
+            total_height += style['date']['height']
+            
+            # Add project heights if included
+            if include_projects and job.get('projects'):
+                total_height += self._calculate_projects_height_nested(job['projects'], style)
+            
+            total_height += self.resolver.get_spacing(style['spacing_after_job'])
+        
+        return total_height
+
+
+    def _calculate_projects_height_nested(self, projects, parent_style):
+        """Calculate height for nested projects"""
+        total_height = 0
+        
+        for project in projects:
+            if not project.get('name', '').strip():
+                continue
+            
+            # Project title
+            total_height += parent_style['project_title']['height']
+            total_height += self.resolver.get_spacing(parent_style['spacing_after_project'])
+            
+            # Tech stack line
+            if project.get('tech_stack'):
+                total_height += parent_style['description']['height']
+            
+            # Description (estimate lines based on length)
+            if project.get('description'):
+                desc_lines = len(project['description']) // 100 + 1  # Rough estimate
+                total_height += parent_style['description']['height'] * desc_lines
+            
+            # Bullets
+            if project.get('bullets'):
+                total_height += self.resolver.get_spacing(parent_style['spacing_before_bullets'])
+                total_height += parent_style['bullet']['height'] * len(project['bullets'])
+        
+        return total_height
+
+
+    def _calculate_projects_height(self, projects):
+        """Calculate height for separate projects section"""
+        style = self.resolver.get_section_style('projects')
+        total_height = 0
+        
+        for project in projects:
+            if not project.get('name', '').strip():
+                continue
+            
+            # Project title + date
+            total_height += style['project_title']['height']
+            total_height += style['date']['height']
+            
+            # Tech stack
+            if project.get('tech_stack'):
+                total_height += style['description']['height']
+            
+            # Description
+            if project.get('description'):
+                desc_lines = len(project['description']) // 100 + 1
+                total_height += style['description']['height'] * desc_lines
+            
+            # Bullets
+            if project.get('bullets'):
+                total_height += self.resolver.get_spacing(style['spacing_before_bullets'])
+                total_height += style['bullet']['height'] * len(project['bullets'])
+            
+            total_height += self.resolver.get_spacing(style['spacing_after_project'])
+        
+        return total_height
+
+
+    def _calculate_columns_height(self, items, section_name):
+        """Calculate height for column-based sections (languages, skills)"""
+        style = self.resolver.get_section_style(section_name)
+        col_layout = self.resolver.get_column_layout(section_name)
+        
+        # Determine correct style keys based on section
+        if section_name == 'languages':
+            title_key = 'language'
+        else:  # skills
+            title_key = 'category'
+        
+        # Count valid items
+        valid_items = []
+        for item in items:
+            if hasattr(item, 'title'):
+                title = item.title
+            else:
+                title = item.get('title', item.get('language', item.get('category', '')))
+            if str(title).strip():
+                valid_items.append(item)
+        
+        if not valid_items:
+            return 0
+        
+        # Calculate rows needed
+        rows = (len(valid_items) + col_layout['column_count'] - 1) // col_layout['column_count']
+        
+        # Height per row (title + subtitle)
+        row_height = style[title_key]['height'] + style.get('proficiency', style.get('skills', {})).get('height', 5)
+        
+        total_height = rows * row_height
+        total_height += self.resolver.get_spacing(style['spacing_after'])
+        
+        return total_height
 
     # ============================================
     # MAIN GENERATE METHOD
@@ -323,8 +538,15 @@ class CVGenerator(FPDF):
         }
         
         # Render sections in order
+        first_section = True
         for section_type in section_order:
             if section_type in renderers:
+                # Skip space check for FIRST section (let it continue after header)
+                if not first_section:
+                    self.check_space(80)  # Check for subsequent sections
+                
+                first_section = False
+                
                 title = SECTION_TITLES.get(section_type, section_type.upper())
                 self.render_section_title(title)
                 renderers[section_type]()

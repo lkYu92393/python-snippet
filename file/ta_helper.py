@@ -220,6 +220,7 @@ def add_additional_column_and_remove_dividend(df, additional_function = None):
     new_df["rsi14"] = ta.momentum.RSIIndicator(close=new_df["Close"], window=14).rsi()
     new_df["rsi14_ma14"] = new_df["rsi14"].rolling(14).mean()
 
+    new_df["bb_dev"] = new_df["Close"].rolling(20).std(ddof=0)
     new_df["bb_bbm"], new_df["bb_bbh"], new_df["bb_bbl"], new_df["bb_bbhi"], new_df["bb_bbli"] = ta_bbm(new_df)
     new_df["super_bbm"], new_df["super_bbh"], new_df["super_bbl"], _, _ = ta_bbm(new_df, 330, 2.5)
 
